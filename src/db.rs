@@ -187,6 +187,15 @@ impl DB {
         DB::open_cf_descriptors_internal(opts, path, cfs, &AccessType::ReadWrite)
     }
 
+    /// Opens a database with the given database options and column family descriptors with a Time to Live compaction filter.
+    pub fn open_cf_descriptors_with_ttl<P, I>(opts: &Options, path: P, cfs: I, ttl: Duration) -> Result<DB, Error>
+    where
+        P: AsRef<Path>,
+        I: IntoIterator<Item = ColumnFamilyDescriptor>,
+    {
+        DB::open_cf_descriptors_internal(opts, path, cfs, &AccessType::WithTTL { ttl })
+    }
+
     /// Internal implementation for opening RocksDB.
     fn open_cf_descriptors_internal<P, I>(
         opts: &Options,
