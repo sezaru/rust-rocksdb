@@ -356,8 +356,20 @@ impl DB {
                         cfopts.as_ptr(),
                         cfhandles.as_mut_ptr(),
                     ))
+                },
+                AccessType::WithTTL { ttl } => {
+                    let ttls = vec![ttl.as_secs() as i32, cfs_v.len() as i32];
+
+                    ffi_try!(ffi::rocksdb_open_column_families_with_ttl(
+                        opts.inner,
+                        cpath.as_ptr(),
+                        cfs_v.len() as c_int,
+                        cfnames.as_ptr(),
+                        cfopts.as_ptr(),
+                        cfhandles.as_mut_ptr(),
+                        ttls.as_ptr(),
+                    ))
                 }
-                _ => return Err(Error::new("Unsupported access type".to_owned())),
             }
         };
         Ok(db)
