@@ -58,6 +58,7 @@ enum AccessType<'a> {
     ReadOnly { error_if_log_file_exist: bool },
     Secondary { secondary_path: &'a Path },
     WithTTL { ttl: Duration },
+    WithTTLs { ttls: Vec<Option<Duration>> },
 }
 
 impl DB {
@@ -188,12 +189,17 @@ impl DB {
     }
 
     /// Opens a database with the given database options and column family descriptors with a Time to Live compaction filter.
-    pub fn open_cf_descriptors_with_ttl<P, I>(opts: &Options, path: P, cfs: I, ttl: Duration) -> Result<DB, Error>
+    pub fn open_cf_descriptors_with_ttl<P, I>(
+        opts: &Options,
+        path: P,
+        cfs: I,
+        ttls: Vec<Option<Duration>>,
+    ) -> Result<DB, Error>
     where
         P: AsRef<Path>,
         I: IntoIterator<Item = ColumnFamilyDescriptor>,
     {
-        DB::open_cf_descriptors_internal(opts, path, cfs, &AccessType::WithTTL { ttl })
+        DB::open_cf_descriptors_internal(opts, path, cfs, &AccessType::WithTTLs { ttls })
     }
 
     /// Internal implementation for opening RocksDB.
@@ -311,6 +317,7 @@ impl DB {
                     cpath.as_ptr() as *const _,
                     ttl.as_secs() as c_int,
                 )),
+                _ => return Err(Error::new("Unsupported access type".to_owned())),
             }
         };
         Ok(db)
@@ -326,7 +333,7 @@ impl DB {
         access_type: &AccessType,
     ) -> Result<*mut ffi::rocksdb_t, Error> {
         let db = unsafe {
-            match *access_type {
+            match &*access_type {
                 AccessType::ReadOnly {
                     error_if_log_file_exist,
                 } => ffi_try!(ffi::rocksdb_open_for_read_only_column_families(
@@ -336,7 +343,7 @@ impl DB {
                     cfnames.as_ptr(),
                     cfopts.as_ptr(),
                     cfhandles.as_mut_ptr(),
-                    error_if_log_file_exist as c_uchar,
+                    *error_if_log_file_exist as c_uchar,
                 )),
                 AccessType::ReadWrite => ffi_try!(ffi::rocksdb_open_column_families(
                     opts.inner,
@@ -356,9 +363,12 @@ impl DB {
                         cfopts.as_ptr(),
                         cfhandles.as_mut_ptr(),
                     ))
-                },
-                AccessType::WithTTL { ttl } => {
-                    let ttls = vec![ttl.as_secs() as i32, cfs_v.len() as i32];
+                }
+                AccessType::WithTTLs { ttls } => {
+                    let ttls: Vec<i32> = ttls
+                        .into_iter()
+                        .map(|opt| opt.map(|ttl| ttl.as_secs() as i32).unwrap_or(0))
+                        .collect();
 
                     ffi_try!(ffi::rocksdb_open_column_families_with_ttl(
                         opts.inner,
@@ -370,6 +380,7 @@ impl DB {
                         ttls.as_ptr(),
                     ))
                 }
+                _ => return Err(Error::new("Unsupported access type".to_owned())),
             }
         };
         Ok(db)
