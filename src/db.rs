@@ -57,7 +57,7 @@ enum AccessType<'a> {
     ReadWrite,
     ReadOnly { error_if_log_file_exist: bool },
     Secondary { secondary_path: &'a Path },
-    WithTTL { ttl: Duration },
+    WithTTL { ttl: Option<Duration> },
     WithTTLs { ttls: Vec<Option<Duration>> },
 }
 
@@ -96,7 +96,7 @@ impl DB {
     pub fn open_with_ttl<P: AsRef<Path>>(
         opts: &Options,
         path: P,
-        ttl: Duration,
+        ttl: Option<Duration>,
     ) -> Result<DB, Error> {
         let c_path = to_cpath(&path)?;
         let db = DB::open_raw(opts, &c_path, &AccessType::WithTTL { ttl })?;
@@ -312,11 +312,18 @@ impl DB {
                         to_cpath(secondary_path)?.as_ptr() as *const _,
                     ))
                 }
-                AccessType::WithTTL { ttl } => ffi_try!(ffi::rocksdb_open_with_ttl(
-                    opts.inner,
-                    cpath.as_ptr() as *const _,
-                    ttl.as_secs() as c_int,
-                )),
+                AccessType::WithTTL { ttl } => {
+                    let ttl_as_secs = match ttl {
+                        Some(ttl) => ttl.as_secs() as c_int,
+                        None => 0,
+                    };
+
+                    ffi_try!(ffi::rocksdb_open_with_ttl(
+                        opts.inner,
+                        cpath.as_ptr() as *const _,
+                        ttl_as_secs,
+                    ))
+                }
                 _ => return Err(Error::new("Unsupported access type".to_owned())),
             }
         };
