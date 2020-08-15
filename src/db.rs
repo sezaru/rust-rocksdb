@@ -16,7 +16,7 @@
 use crate::{
     ffi,
     ffi_util::{from_cstr, opt_bytes_to_ptr, raw_data, to_cpath},
-    AccessHint, ColumnFamily, ColumnFamilyDescriptor, CompactOptions, DBIterator, DBPinnableSlice,
+    ColumnFamily, ColumnFamilyDescriptor, CompactOptions, DBIterator, DBPinnableSlice,
     DBRawIterator, DBWALIterator, Direction, Error, FlushOptions, IngestExternalFileOptions,
     IteratorMode, Options, ReadOptions, Snapshot, WriteBatch, WriteOptions,
     DEFAULT_COLUMN_FAMILY_NAME,
