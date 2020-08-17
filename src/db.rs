@@ -324,7 +324,9 @@ impl DB {
                         ttl_as_secs,
                     ))
                 }
-                _ => return Err(Error::new("Unsupported access type".to_owned())),
+                AccessType::WithTTLs { ttls: _ } => {
+                    ffi_try!(ffi::rocksdb_open(opts.inner, cpath.as_ptr() as *const _))
+                }
             }
         };
         Ok(db)
