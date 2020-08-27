@@ -626,6 +626,39 @@ impl DB {
         Ok(())
     }
 
+    pub fn create_cf_with_ttl<N: AsRef<str>>(
+        &mut self,
+        name: N,
+        opts: &Options,
+        ttl: Option<Duration>,
+    ) -> Result<(), Error> {
+        let cf_name = if let Ok(c) = CString::new(name.as_ref().as_bytes()) {
+            c
+        } else {
+            return Err(Error::new(
+                "Failed to convert path to CString when creating cf".to_owned(),
+            ));
+        };
+
+        let ttl_as_secs = match ttl {
+            Some(ttl) => ttl.as_secs() as c_int,
+            None => 0,
+        };
+
+        unsafe {
+            let inner = ffi_try!(ffi::rocksdb_create_column_family_with_ttl(
+                self.inner,
+                opts.inner,
+                cf_name.as_ptr(),
+                ttl_as_secs,
+            ));
+
+            self.cfs
+                .insert(name.as_ref().to_string(), ColumnFamily { inner });
+        };
+        Ok(())
+    }
+
     pub fn drop_cf(&mut self, name: &str) -> Result<(), Error> {
         if let Some(cf) = self.cfs.remove(name) {
             unsafe {
