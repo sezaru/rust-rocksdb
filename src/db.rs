@@ -324,9 +324,11 @@ impl DB {
                         ttl_as_secs,
                     ))
                 }
-                AccessType::WithTTLs { ttls: _ } => {
-                    ffi_try!(ffi::rocksdb_open(opts.inner, cpath.as_ptr() as *const _))
-                }
+                AccessType::WithTTLs { ttls: _ } => ffi_try!(ffi::rocksdb_open_with_ttl(
+                    opts.inner,
+                    cpath.as_ptr() as *const _,
+                    0
+                )),
             }
         };
         Ok(db)
